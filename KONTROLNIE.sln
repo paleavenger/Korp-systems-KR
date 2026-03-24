@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KR1", "KR1\KR1.csproj", "{FB718EF4-CE66-4661-9C17-FD87FE4F9425}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KR2", "KR2\KR2.csproj", "{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FB718EF4-CE66-4661-9C17-FD87FE4F9425}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB718EF4-CE66-4661-9C17-FD87FE4F9425}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB718EF4-CE66-4661-9C17-FD87FE4F9425}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB718EF4-CE66-4661-9C17-FD87FE4F9425}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
