@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KR1", "KR1\KR1.csproj", "{F
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KR2", "KR2\KR2.csproj", "{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KR3", "KR3\KR3.csproj", "{C4086AE1-E11A-471C-AD2C-E08FC7E02BB6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{35B25D7F-CAE1-4FC0-AE83-C006F3AD67E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4086AE1-E11A-471C-AD2C-E08FC7E02BB6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4086AE1-E11A-471C-AD2C-E08FC7E02BB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4086AE1-E11A-471C-AD2C-E08FC7E02BB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4086AE1-E11A-471C-AD2C-E08FC7E02BB6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

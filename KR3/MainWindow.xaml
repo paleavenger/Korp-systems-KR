@@ -1,0 +1,162 @@
+<Window x:Class="KR3.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:scp="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+        Title="HTTP Monitor" Height="860" Width="1400">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="420"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        
+        <Grid Grid.Column="0" Margin="0,0,8,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <GroupBox Header="СЕРВЕР" Grid.Row="0" Margin="0,0,0,8" Padding="10">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Порт:" VerticalAlignment="Center" Width="50"/>
+                        <TextBox x:Name="PortTextBox" Text="8080" Width="80" Height="26"/>
+                        <Button x:Name="StartServerButton" Content="Запустить"
+                                Width="110" Height="28" Margin="8,0,0,0"
+                                Click="StartServerButton_Click"/>
+                        <Button x:Name="StopServerButton" Content="Остановить"
+                                Width="110" Height="28" Margin="5,0,0,0"
+                                Click="StopServerButton_Click"
+                                IsEnabled="False"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Статус:" Width="50"/>
+                        <TextBlock x:Name="StatusTextBlock" Text="Остановлен"
+                                   Foreground="Gray" FontWeight="Bold"/>
+                    </StackPanel>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="КЛИЕНТ" Grid.Row="1" Margin="0,0,0,8" Padding="10">
+                <StackPanel>
+                    <TextBlock Text="URL:" Margin="0,0,0,3"/>
+                    <TextBox x:Name="ClientUrlTextBox" Height="26" Margin="0,0,0,8"
+                             Text="http://localhost:8080/"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Метод:" VerticalAlignment="Center" Width="50"/>
+                        <ComboBox x:Name="ClientMethodComboBox" Width="90" Height="26" SelectedIndex="0">
+                            <ComboBoxItem Content="GET"/>
+                            <ComboBoxItem Content="POST"/>
+                        </ComboBox>
+                        <Button x:Name="SendRequestButton" Content="Отправить запрос"
+                                Width="150" Height="28" Margin="10,0,0,0"
+                                Click="SendRequestButton_Click"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Тело запроса (JSON):" Margin="0,0,0,3"/>
+                    <TextBox x:Name="ClientBodyTextBox" Height="60"
+                             AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             Margin="0,0,0,8"
+                             Text='{}{ "message": "привет" }'/>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Ответ клиента" Grid.Row="2" Padding="5">
+                <TextBox x:Name="ClientResponseTextBox" IsReadOnly="True"
+                         FontFamily="Consolas" FontSize="12"
+                         AcceptsReturn="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"/>
+            </GroupBox>
+        </Grid>
+
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="200"/>
+            </Grid.RowDefinitions>
+
+            <GroupBox Header="График нагрузки" Grid.Row="0" Margin="0,0,0,8" Padding="5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="Разрез:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <RadioButton x:Name="ChartMinuteRadio" Content="По минутам" IsChecked="True"
+                                     GroupName="ChartMode" Margin="5,0" Checked="ChartMode_Changed"/>
+                        <RadioButton x:Name="ChartHourRadio" Content="По часам"
+                                     GroupName="ChartMode" Margin="5,0" Checked="ChartMode_Changed"/>
+                        <Button Content="Сбросить масштаб" Width="130" Margin="15,0,0,0"
+                                Click="ResetZoom_Click"/>
+                    </StackPanel>
+                    <scp:WpfPlot x:Name="LoadPlotView" Grid.Row="1"/>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Статистика" Grid.Row="1" Margin="0,0,0,8" Padding="10">
+                <WrapPanel>
+                    <TextBlock Text="Всего: " FontWeight="Bold"/>
+                    <TextBlock x:Name="StatTotalTextBlock" Text="0" Margin="0,0,20,0"/>
+                    <TextBlock Text="GET: " FontWeight="Bold"/>
+                    <TextBlock x:Name="StatGetTextBlock" Text="0" Margin="0,0,20,0"/>
+                    <TextBlock Text="POST: " FontWeight="Bold"/>
+                    <TextBlock x:Name="StatPostTextBlock" Text="0" Margin="0,0,20,0"/>
+                    <TextBlock Text="Other: " FontWeight="Bold"/>
+                    <TextBlock x:Name="StatOtherTextBlock" Text="0" Margin="0,0,20,0"/>
+                    <TextBlock Text="Ср. время: " FontWeight="Bold"/>
+                    <TextBlock x:Name="StatAvgTextBlock" Text="0 ms" Margin="0,0,20,0"/>
+                    <TextBlock Text="Uptime: " FontWeight="Bold"/>
+                    <TextBlock x:Name="StatUptimeTextBlock" Text="00:00:00" Margin="0,0,20,0"/>
+                    <TextBlock Text="Сообщений: " FontWeight="Bold"/>
+                    <TextBlock x:Name="StatMessagesTextBlock" Text="0"/>
+                </WrapPanel>
+            </GroupBox>
+
+            <GroupBox Header="Логи запросов" Grid.Row="2" Padding="5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                        <TextBlock Text="Метод:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="FilterMethodComboBox" Width="75" SelectedIndex="0"
+                                  SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Все"/>
+                            <ComboBoxItem Content="GET"/>
+                            <ComboBoxItem Content="POST"/>
+                        </ComboBox>
+                        <TextBlock Text="Статус:" VerticalAlignment="Center" Margin="12,0,5,0"/>
+                        <ComboBox x:Name="FilterStatusComboBox" Width="75" SelectedIndex="0"
+                                  SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Все"/>
+                            <ComboBoxItem Content="2xx"/>
+                            <ComboBoxItem Content="4xx"/>
+                            <ComboBoxItem Content="5xx"/>
+                        </ComboBox>
+                        <TextBlock Text="Направление:" VerticalAlignment="Center" Margin="12,0,5,0"/>
+                        <ComboBox x:Name="FilterDirectionComboBox" Width="105" SelectedIndex="0"
+                                  SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Все"/>
+                            <ComboBoxItem Content="Входящие"/>
+                            <ComboBoxItem Content="Исходящие"/>
+                        </ComboBox>
+                        <Button Content="Очистить" Width="75" Margin="12,0,0,0" Click="ClearLogs_Click"/>
+                        <Button Content="Сохранить логи" Width="110" Margin="8,0,0,0" Click="SaveLogs_Click"/>
+                    </StackPanel>
+
+                    <ListBox x:Name="LogListBox" Grid.Row="1"
+                             FontFamily="Consolas" FontSize="12"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                </Grid>
+            </GroupBox>
+        </Grid>
+    </Grid>
+</Window>
