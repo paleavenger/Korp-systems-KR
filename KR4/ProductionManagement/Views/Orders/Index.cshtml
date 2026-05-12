@@ -1,0 +1,337 @@
+@model IEnumerable<KR5.Models.WorkOrder>
+@{
+    ViewData["Title"] = "Заказы";
+    var products = ViewBag.Products as List<KR5.Models.Product> ?? new();
+    var lines = ViewBag.Lines as List<KR5.Models.ProductionLine> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Производственные заказы</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ Новый заказ</button>
+</div>
+
+<div class="mb-3 d-flex gap-2 flex-wrap">
+    @foreach (var s in new[] { ("", "Все"), ("Pending", "Ожидает"), ("InProgress", "В работе"), ("Completed", "Завершён"), ("Cancelled", "Отменён") })
+    {
+        <a asp-action="Index" asp-route-status="@s.Item1"
+           class="btn btn-sm @(ViewBag.Status == s.Item1 || (string.IsNullOrEmpty(ViewBag.Status as string) && string.IsNullOrEmpty(s.Item1)) ? "btn-dark" : "btn-outline-secondary")">
+            @s.Item2
+        </a>
+    }
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Продукт</th>
+                <th>Кол-во</th>
+                <th>Линия</th>
+                <th>Статус</th>
+                <th>Прогресс</th>
+                <th>Плановое начало</th>
+                <th>Срок завершения</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var order in Model)
+            {
+                var badgeClass = order.Status switch
+                {
+                    "InProgress" => "bg-primary",
+                    "Completed" => "bg-success",
+                    "Cancelled" => "bg-danger",
+                    _ => "bg-secondary"
+                };
+                var statusRu = order.Status switch
+                {
+                    "Pending" => "Ожидает",
+                    "InProgress" => "В работе",
+                    "Completed" => "Завершён",
+                    "Cancelled" => "Отменён",
+                    _ => order.Status
+                };
+                <tr data-order-id="@order.Id"
+                    data-start="@(order.Status == "InProgress" ? DateTime.SpecifyKind(order.StartDate, DateTimeKind.Utc).ToString("o") : "")"
+                    data-end="@(order.Status == "InProgress" ? DateTime.SpecifyKind(order.EstimatedEndDate, DateTimeKind.Utc).ToString("o") : "")">
+                    <td>@order.Id</td>
+                    <td>@order.Product?.Name</td>
+                    <td>@order.Quantity шт.</td>
+                    <td>@(order.ProductionLine?.Name ?? "—")</td>
+                    <td><span class="badge @badgeClass order-status-badge">@statusRu</span></td>
+                    <td style="min-width:140px;">
+                        <div class="progress" style="height:20px;">
+                            <div class="progress-bar order-progress-bar @(order.Status == "InProgress" ? "progress-bar-striped progress-bar-animated" : "")"
+                                 role="progressbar"
+                                 style="width:@order.Progress%"
+                                 data-order-id="@order.Id">
+                                @order.Progress%
+                            </div>
+                        </div>
+                    </td>
+                    <td>@order.StartDate.AddHours(3).ToString("dd/MM/yy HH:mm")</td>
+                    <td class="order-end-date">@order.EstimatedEndDate.AddHours(3).ToString("dd/MM/yy HH:mm")</td>
+                    <td>
+                        <div class="d-flex gap-1 flex-wrap">
+                            @if (order.Status == "Pending")
+                            {
+                                <button class="btn btn-success btn-sm" onclick="startOrder(@order.Id)">Запустить</button>
+                            }
+                            @if (order.Status == "Pending" || order.Status == "InProgress")
+                            {
+                                <button class="btn btn-danger btn-sm" onclick="cancelOrder(@order.Id)">Отменить</button>
+                            }
+                            @if (order.Status != "Completed" && order.Status != "Cancelled")
+                            {
+                                <button class="btn btn-outline-secondary btn-sm" onclick="openReschedule(@order.Id)">Перенос</button>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- Создание заказа -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Новый заказ</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Продукт <span class="text-danger">*</span></label>
+                    <select id="newProductId" class="form-select" onchange="onProductChange(this.value)" required>
+                        <option value="">— Выберите продукт —</option>
+                        @foreach (var p in products)
+                        {
+                            <option value="@p.Id" data-time="@p.ProductionTimePerUnit">@p.Name (@p.ProductionTimePerUnit мин/шт)</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Количество (шт.)</label>
+                    <input type="number" id="newQuantity" class="form-control" min="1" max="100000" value="1" oninput="recalcTime()" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Производственная линия</label>
+                    <select id="newLineId" class="form-select" onchange="recalcTime()">
+                        <option value="">— Без линии —</option>
+                        @foreach (var l in lines)
+                        {
+                            <option value="@l.Id" data-eff="@l.EfficiencyFactor.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)">@l.Name (x@(l.EfficiencyFactor.ToString("F1")))</option>
+                        }
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Плановое начало</label>
+                        <input type="datetime-local" id="newStartDate" class="form-control" oninput="recalcTime()" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Плановое завершение</label>
+                        <input type="datetime-local" id="newEndDate" class="form-control" readonly />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" onclick="createOrder()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Перенос даты -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Перенести срок</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="rescheduleOrderId" />
+                <label class="form-label">Новая дата начала</label>
+                <input type="datetime-local" id="rescheduleDate" class="form-control" />
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" onclick="saveReschedule()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function tickProgress() {
+        document.querySelectorAll("tr[data-start][data-end]").forEach(async row => {
+            const start = new Date(row.dataset.start);
+            const end = new Date(row.dataset.end);
+            if (!start || !end || isNaN(start) || isNaN(end)) return;
+            const now = new Date();
+            const total = end - start;
+            const elapsed = now - start;
+            const timePct = Math.min(100, Math.max(0, Math.round(elapsed / total * 100)));
+            const bar = row.querySelector(".order-progress-bar");
+            if (!bar) return;
+            const currentPct = parseInt(bar.innerText) || 0;
+            const pct = Math.max(currentPct, timePct);
+            bar.style.width = pct + "%";
+            bar.innerText = pct + "%";
+            if (pct >= 100 && row.dataset.completing !== "1") {
+                row.dataset.completing = "1";
+                const id = row.dataset.orderId;
+                await fetch(`/api/orders/${id}/progress`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ percent: 100 })
+                });
+                location.reload();
+            }
+        });
+    }
+    setInterval(tickProgress, 5000);
+    tickProgress();
+
+    function mskStr(date) {
+        const d = new Date(date.getTime() + 3 * 60 * 60000);
+        const s = d.toISOString();
+        return `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(2,4)} ${s.slice(11,16)}`;
+    }
+
+    // SignalR
+    const connection = new signalR.HubConnectionBuilder().withUrl("/hubs/production").build();
+    connection.on("ReceiveProgress", (orderId, progress, status) => {
+        const bar = document.querySelector(`.order-progress-bar[data-order-id="${orderId}"]`);
+        if (bar) {
+            bar.style.width = progress + "%";
+            bar.innerText = progress + "%";
+            if (status === "InProgress") {
+                bar.classList.add("progress-bar-striped", "progress-bar-animated");
+            } else {
+                bar.classList.remove("progress-bar-striped", "progress-bar-animated");
+            }
+        }
+        const badge = document.querySelector(`tr[data-order-id="${orderId}"] .order-status-badge`);
+        if (badge && status) {
+            const map = { Pending: ["Ожидает","bg-secondary"], InProgress: ["В работе","bg-primary"], Completed: ["Завершён","bg-success"], Cancelled: ["Отменён","bg-danger"] };
+            if (map[status]) {
+                badge.innerText = map[status][0];
+                badge.className = "badge " + map[status][1] + " order-status-badge";
+            }
+        }
+    });
+    connection.on("UpdateOrderEndDate", (orderId, endDateStr) => {
+        const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+        if (!row) return;
+        row.dataset.end = endDateStr;
+        const cell = row.querySelector(".order-end-date");
+        if (cell) cell.innerText = mskStr(new Date(endDateStr));
+    });
+    connection.start().catch(e => console.error(e));
+
+    document.getElementById("createModal").addEventListener("show.bs.modal", () => {
+        const msk = new Date(Date.now() + 3 * 60 * 60000);
+        document.getElementById("newStartDate").value = msk.toISOString().slice(0, 16);
+        document.getElementById("newEndDate").value = "";
+        recalcTime();
+    });
+
+    function onProductChange(pid) { recalcTime(); }
+
+    function recalcTime() {
+        const sel = document.getElementById("newProductId");
+        const opt = sel.options[sel.selectedIndex];
+        const qty = parseInt(document.getElementById("newQuantity").value) || 1;
+        const timePerUnit = parseInt(opt?.dataset?.time) || 0;
+        const lineSel = document.getElementById("newLineId");
+        const lineOpt = lineSel.options[lineSel.selectedIndex];
+        const eff = parseFloat(lineOpt?.dataset?.eff) || 1.0;
+        const startVal = document.getElementById("newStartDate").value;
+        const startDate = startVal ? new Date(startVal + ':00+03:00') : new Date();
+        if (!timePerUnit) { document.getElementById("newEndDate").value = ""; return; }
+        const total = Math.round((timePerUnit * qty) / eff);
+        const end = new Date(startDate.getTime() + total * 60000);
+        const endMsk = new Date(end.getTime() + 3 * 60 * 60000);
+        document.getElementById("newEndDate").value = endMsk.toISOString().slice(0, 16);
+    }
+
+    async function createOrder() {
+        const productId = document.getElementById("newProductId").value;
+        const quantity = parseInt(document.getElementById("newQuantity").value);
+        const lineId = document.getElementById("newLineId").value || null;
+        if (!productId) { alert("Выберите продукт"); return; }
+        if (!quantity || quantity <= 0) { alert("Количество должно быть больше 0"); return; }
+        if (quantity > 100000) { alert("Количество не может превышать 100 000"); return; }
+        const dt = document.getElementById("newStartDate").value;
+        const startUtc = dt ? new Date(dt + ':00+03:00').toISOString() : null;
+        const res = await fetch("/api/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_id: parseInt(productId), quantity, line_id: lineId ? parseInt(lineId) : null, start_date: startUtc })
+        });
+        if (res.ok) { location.reload(); }
+        else { const err = await res.text(); alert("Ошибка: " + err); }
+    }
+
+    async function startOrder(id) {
+        if (!confirm("Запустить заказ в производство?")) return;
+        const res = await fetch(`/api/orders/${id}/start`, { method: "PUT" });
+        if (res.ok) { location.reload(); }
+        else { const err = await res.text(); alert(err); }
+    }
+
+    async function cancelOrder(id) {
+        if (!confirm("Отменить заказ? Материалы вернутся на склад.")) return;
+        const res = await fetch(`/api/orders/${id}/cancel`, { method: "PUT" });
+        if (res.ok) { location.reload(); }
+        else { const err = await res.text(); alert(err); }
+    }
+
+    function openProgressModal(id) {
+        const bar = document.querySelector(`.order-progress-bar[data-order-id="${id}"]`);
+        const current = parseInt(bar?.innerText) || 0;
+        document.getElementById("progressOrderId").value = id;
+        document.getElementById("progressRange").value = current;
+        document.getElementById("progressLabel").innerText = current;
+        new bootstrap.Modal(document.getElementById("progressModal")).show();
+    }
+
+    async function saveProgress() {
+        const id = document.getElementById("progressOrderId").value;
+        const percent = parseInt(document.getElementById("progressRange").value);
+        const res = await fetch(`/api/orders/${id}/progress`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ percent })
+        });
+        if (!res.ok) { alert("Ошибка"); return; }
+        bootstrap.Modal.getInstance(document.getElementById("progressModal")).hide();
+    }
+
+    function openReschedule(id) {
+        document.getElementById("rescheduleOrderId").value = id;
+        const msk = new Date(Date.now() + 3 * 60 * 60000);
+        const mskStr16 = msk.toISOString().slice(0, 16);
+        const input = document.getElementById("rescheduleDate");
+        input.min = mskStr16;
+        input.value = mskStr16;
+        new bootstrap.Modal(document.getElementById("rescheduleModal")).show();
+    }
+
+    async function saveReschedule() {
+        const id = document.getElementById("rescheduleOrderId").value;
+        const dt = document.getElementById("rescheduleDate").value;
+        const utcDate = new Date(dt + ':00+03:00');
+        const res = await fetch(`/api/orders/${id}/reschedule`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ new_start: utcDate.toISOString() })
+        });
+        if (res.ok) { location.reload(); }
+        else { alert("Ошибка"); }
+    }
+</script>
+}

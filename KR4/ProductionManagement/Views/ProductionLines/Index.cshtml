@@ -1,0 +1,152 @@
+@model IEnumerable<KR5.Models.ProductionLine>
+@{
+    ViewData["Title"] = "Производственные линии";
+    var products = ViewBag.Products as List<KR5.Models.Product> ?? new();
+    var activeOrders = ViewBag.ActiveOrders as List<KR5.Models.WorkOrder> ?? new();
+}
+
+<h2 class="mb-4">Производственные линии</h2>
+
+<div class="row g-4">
+    @foreach (var line in Model)
+    {
+        var isActive = line.Status == "Active";
+        <div class="col-md-4" id="line-card-@line.Id">
+            <div class="card h-100 shadow-sm border-@(isActive ? "success" : "secondary")">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">@line.Name</h5>
+                    <span class="badge @(isActive ? "bg-success" : "bg-secondary") line-status-badge" data-line-id="@line.Id">
+                        @(isActive ? "Работает" : "Остановлена")
+                    </span>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Коэффициент эффективности:</strong><br/>
+                        <input type="range" class="form-range" min="0.5" max="2.0" step="0.1"
+                               value="@line.EfficiencyFactor.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)"
+                               oninput="updateEffLabel(this, @line.Id)"
+                               onchange="setEfficiency(@line.Id, this.value)" />
+                        <span id="eff-label-@line.Id">x@(line.EfficiencyFactor.ToString("F1"))</span>
+                    </p>
+                    @{
+                        var currentOrder = activeOrders.FirstOrDefault(o => o.ProductionLineId == line.Id);
+                    }
+                    @if (currentOrder != null)
+                    {
+                        <p class="text-muted mb-1">Текущий заказ: <strong>#@currentOrder.Id</strong></p>
+                        <p class="mb-1">Продукт: <strong>@currentOrder.Product?.Name</strong></p>
+                        <p class="mb-2">Количество: <strong>@currentOrder.Quantity шт.</strong></p>
+                        <div class="progress mb-1" style="height:18px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated order-progress-bar"
+                                 role="progressbar"
+                                 style="width:@currentOrder.Progress%"
+                                 data-order-id="@currentOrder.Id">
+                                @currentOrder.Progress%
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-1">Текущий продукт: <em>нет</em></p>
+                    }
+                </div>
+                <div class="card-footer d-flex gap-2 flex-wrap">
+                    @if (!isActive)
+                    {
+                        <button class="btn btn-success btn-sm" onclick="setStatus(@line.Id, 'Active')">Запустить</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-warning btn-sm" onclick="setStatus(@line.Id, 'Stopped')">Остановить</button>
+                    }
+                    <button class="btn btn-outline-secondary btn-sm" onclick="openSchedule(@line.Id, '@line.Name')">Расписание</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Расписание -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Расписание: <span id="schedLineName"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div id="scheduleContent"><p class="text-muted">Загрузка...</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // SignalR — обновление прогресса на карточках линий
+    const connection = new signalR.HubConnectionBuilder().withUrl("/hubs/production").build();
+    connection.on("ReceiveProgress", (orderId, progress, status) => {
+        const bar = document.querySelector(`.order-progress-bar[data-order-id="${orderId}"]`);
+        if (bar) {
+            bar.style.width = progress + "%";
+            bar.innerText = progress + "%";
+        }
+    });
+    connection.start().catch(e => console.error(e));
+
+    function updateEffLabel(input, lineId) {
+        document.getElementById(`eff-label-${lineId}`).innerText = "x" + parseFloat(input.value).toFixed(1);
+    }
+
+    async function setEfficiency(lineId, factor) {
+        await fetch(`/api/lines/${lineId}/efficiency`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ factor: parseFloat(factor) })
+        });
+    }
+
+    async function setStatus(lineId, status) {
+        const res = await fetch(`/api/lines/${lineId}/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status })
+        });
+        if (res.ok) location.reload();
+        else alert("Ошибка");
+    }
+
+    async function openSchedule(lineId, lineName) {
+        document.getElementById("schedLineName").innerText = lineName;
+        document.getElementById("scheduleContent").innerHTML = "<p class='text-muted'>Загрузка...</p>";
+        new bootstrap.Modal(document.getElementById("scheduleModal")).show();
+
+        const res = await fetch(`/api/lines/${lineId}/schedule`);
+        const orders = await res.json();
+        if (!orders.length) {
+            document.getElementById("scheduleContent").innerHTML = "<p class='text-muted'>Нет активных заказов</p>";
+            return;
+        }
+        const rows = orders.map(o => {
+            const statusMap = { Pending: "Ожидает", InProgress: "В работе", Completed: "Завершён", Cancelled: "Отменён" };
+            const d = new Date(new Date(o.estimatedEndDate).getTime() + 3 * 60 * 60000);
+            const s = d.toISOString();
+            const end = `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(2,4)} ${s.slice(11,16)}`;
+            return `<tr>
+                <td>#${o.id}</td>
+                <td>${o.productName}</td>
+                <td>${o.quantity} шт.</td>
+                <td>${statusMap[o.status] || o.status}</td>
+                <td>${end}</td>
+                <td>
+                    <div class="progress" style="height:16px;min-width:80px;">
+                        <div class="progress-bar" style="width:${o.progress}%">${o.progress}%</div>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+        document.getElementById("scheduleContent").innerHTML = `
+            <table class="table table-sm align-middle">
+                <thead class="table-dark"><tr><th>#</th><th>Продукт</th><th>Кол-во</th><th>Статус</th><th>Срок</th><th>Прогресс</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    }
+</script>
+}

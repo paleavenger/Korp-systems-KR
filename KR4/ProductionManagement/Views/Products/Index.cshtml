@@ -1,0 +1,210 @@
+@model IEnumerable<KR5.Models.Product>
+@{
+    ViewData["Title"] = "Продукты";
+    var categories = ViewBag.Categories as List<string> ?? new();
+    var allMaterials = ViewBag.Materials as List<KR5.Models.Material> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Продукты</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">+ Добавить</button>
+</div>
+
+<form method="get" class="mb-3 d-flex gap-2 flex-wrap">
+    <input type="text" name="search" class="form-control" style="max-width:250px;" placeholder="Поиск..." value="@ViewBag.Search" />
+    <select name="category" class="form-select" style="max-width:200px;">
+        <option value="">Все категории</option>
+        @foreach (var c in categories)
+        {
+            <option value="@c" selected="@(ViewBag.Category == c ? "selected" : null)">@c</option>
+        }
+    </select>
+    <button class="btn btn-outline-secondary" type="submit">Найти</button>
+    @if (!string.IsNullOrEmpty(ViewBag.Search as string) || !string.IsNullOrEmpty(ViewBag.Category as string))
+    {
+        <a asp-action="Index" class="btn btn-outline-danger">Сбросить</a>
+    }
+</form>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr><th>Название</th><th>Категория</th><th>Время пр-ва (мин/шт)</th><th>Мин. запас</th><th>Материалы</th><th>Действия</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model)
+            {
+                <tr>
+                    <td><strong>@p.Name</strong><br/><small class="text-muted">@p.Description</small></td>
+                    <td><span class="badge bg-secondary">@p.Category</span></td>
+                    <td>@p.ProductionTimePerUnit мин</td>
+                    <td>@p.MinimalStock шт.</td>
+                    <td>
+                        @foreach (var pm in p.ProductMaterials)
+                        {
+                            <span class="badge bg-light text-dark border me-1">@pm.Material?.Name: @pm.QuantityNeeded @pm.Material?.UnitOfMeasure</span>
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-secondary btn-sm"
+                                onclick="openEdit(@p.Id, '@p.Name.Replace("'","\\'")', '@p.Description.Replace("'","\\'")', '@p.Category', @p.MinimalStock, @p.ProductionTimePerUnit)">
+                            Изменить
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- Редактировать продукт -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Редактировать продукт</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="eId" />
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Название</label><input type="text" id="eName" class="form-control" /></div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Категория</label><input type="text" id="eCategory" class="form-control" /></div>
+                </div>
+                <div class="mb-3"><label class="form-label">Описание</label><textarea id="eDesc" class="form-control" rows="2"></textarea></div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Время произв. (мин/шт)</label><input type="number" id="eTime" class="form-control" /></div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Мин. запас (шт)</label><input type="number" id="eMinStock" class="form-control" /></div>
+                </div>
+                <hr />
+                <h6>Необходимые материалы</h6>
+                <div id="editMaterialsContainer"></div>
+                <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addEditMaterialRow()">+ Добавить материал</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" onclick="saveProduct()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Создать продукт -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Новый продукт</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Название</label><input type="text" id="cName" class="form-control" /></div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Категория</label><input type="text" id="cCategory" class="form-control" /></div>
+                </div>
+                <div class="mb-3"><label class="form-label">Описание</label><textarea id="cDesc" class="form-control" rows="2"></textarea></div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label">Время произв. (мин/шт)</label><input type="number" id="cTime" class="form-control" value="10" /></div>
+                    <div class="col-md-6 mb-3"><label class="form-label">Мин. запас (шт)</label><input type="number" id="cMinStock" class="form-control" value="10" /></div>
+                </div>
+                <hr />
+                <h6>Необходимые материалы</h6>
+                <div id="materialsContainer"></div>
+                <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addMaterialRow()">+ Добавить материал</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" onclick="createProduct()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const allMaterials = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(allMaterials.Select(m => new { m.Id, m.Name, m.UnitOfMeasure })));
+
+    function addMaterialRow() {
+        const container = document.getElementById("materialsContainer");
+        const row = document.createElement("div");
+        row.className = "d-flex gap-2 mb-2 material-row";
+        row.innerHTML = `
+            <select class="form-select mat-id">
+                ${allMaterials.map(m => `<option value="${m.Id}">${m.Name} (${m.UnitOfMeasure})</option>`).join('')}
+            </select>
+            <input type="number" class="form-control mat-qty" placeholder="Кол-во" step="0.01" value="1" style="max-width:120px;" />
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
+        container.appendChild(row);
+    }
+
+    async function createProduct() {
+        const materials = [...document.querySelectorAll(".material-row")].map(r => ({
+            materialId: parseInt(r.querySelector(".mat-id").value),
+            quantityNeeded: parseFloat(r.querySelector(".mat-qty").value)
+        }));
+
+        const res = await fetch("/api/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: document.getElementById("cName").value,
+                prod_time: parseInt(document.getElementById("cTime").value),
+                category: document.getElementById("cCategory").value,
+                description: document.getElementById("cDesc").value,
+                minimalStock: parseInt(document.getElementById("cMinStock").value),
+                materials
+            })
+        });
+        if (res.ok) location.reload();
+        else { const err = await res.text(); alert(err); }
+    }
+
+    function addEditMaterialRow(matId, qty) {
+        const container = document.getElementById("editMaterialsContainer");
+        const row = document.createElement("div");
+        row.className = "d-flex gap-2 mb-2 material-row";
+        row.innerHTML = `
+            <select class="form-select mat-id">
+                ${allMaterials.map(m => `<option value="${m.Id}" ${m.Id == matId ? 'selected' : ''}>${m.Name} (${m.UnitOfMeasure})</option>`).join('')}
+            </select>
+            <input type="number" class="form-control mat-qty" placeholder="Кол-во" step="0.01" value="${qty ?? 1}" style="max-width:120px;" />
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
+        container.appendChild(row);
+    }
+
+    async function openEdit(id, name, desc, cat, minStock, time) {
+        document.getElementById("eId").value = id;
+        document.getElementById("eName").value = name;
+        document.getElementById("eDesc").value = desc;
+        document.getElementById("eCategory").value = cat;
+        document.getElementById("eMinStock").value = minStock;
+        document.getElementById("eTime").value = time;
+        document.getElementById("editMaterialsContainer").innerHTML = "";
+
+        const res = await fetch(`/api/products/${id}/materials`);
+        const mats = await res.json();
+        mats.forEach(m => {
+            const mat = allMaterials.find(x => x.Name === m.name);
+            if (mat) addEditMaterialRow(mat.Id, m.quantityNeeded);
+        });
+
+        new bootstrap.Modal(document.getElementById("editModal")).show();
+    }
+
+    async function saveProduct() {
+        const id = document.getElementById("eId").value;
+        const materials = [...document.querySelectorAll("#editMaterialsContainer .material-row")].map(r => ({
+            materialId: parseInt(r.querySelector(".mat-id").value),
+            quantityNeeded: parseFloat(r.querySelector(".mat-qty").value)
+        }));
+        const res = await fetch(`/api/products/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: document.getElementById("eName").value,
+                prod_time: parseInt(document.getElementById("eTime").value),
+                category: document.getElementById("eCategory").value,
+                description: document.getElementById("eDesc").value,
+                minimalStock: parseInt(document.getElementById("eMinStock").value),
+                materials
+            })
+        });
+        if (res.ok) location.reload();
+        else { const err = await res.text(); alert(err); }
+    }
+</script>
+}

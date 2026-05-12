@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Управление производством</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-dark bg-dark mb-3">
+            <div class="container">
+                <a class="navbar-brand fw-bold" asp-controller="Orders" asp-action="Index">Производство</a>
+                <div class="navbar-collapse collapse">
+                    <ul class="navbar-nav gap-2">
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Orders" ? "active" : "")"
+                               asp-controller="Orders" asp-action="Index">Заказы</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Materials" ? "active" : "")"
+                               asp-controller="Materials" asp-action="Index">Материалы</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Products" ? "active" : "")"
+                               asp-controller="Products" asp-action="Index">Продукты</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "ProductionLines" ? "active" : "")"
+                               asp-controller="ProductionLines" asp-action="Index">Линии</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container main-container flex-grow-1 pb-4">
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+    <footer class="border-top text-muted py-3 mt-auto">
+        <div class="container text-center">&copy; 2026 — Система управления производством</div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

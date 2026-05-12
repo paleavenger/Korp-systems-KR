@@ -1,0 +1,73 @@
+@model KR4.Models.City
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-controller="Cities" asp-action="Index">Города</a></li>
+        <li class="breadcrumb-item active">@Model.Name</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col-md-7">
+        @if (!string.IsNullOrEmpty(Model.PhotoUrl))
+        {
+            <img src="@Model.PhotoUrl" class="img-fluid rounded shadow mb-3" alt="@Model.Name" style="width: 100%; max-height: 400px; object-fit: cover;" />
+        }
+    </div>
+    <div class="col-md-5">
+        <div class="d-flex align-items-center mb-3">
+            @if (!string.IsNullOrEmpty(Model.CoatOfArmsUrl))
+            {
+                <img src="@Model.CoatOfArmsUrl" alt="Герб @Model.Name" style="height: 80px;" class="me-3" />
+            }
+            <h2>@Model.Name</h2>
+        </div>
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th>Регион</th>
+                    <td>@Model.Region</td>
+                </tr>
+                <tr>
+                    <th>Население</th>
+                    <td>@Model.Population.ToString("N0") чел.</td>
+                </tr>
+            </tbody>
+        </table>
+        <h5>История</h5>
+        <p>@Model.History</p>
+    </div>
+</div>
+
+<h3 class="mb-3">Достопримечательности</h3>
+
+@if (!Model.Attractions.Any())
+{
+    <div class="alert alert-info">Достопримечательности не добавлены.</div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        @foreach (var attraction in Model.Attractions)
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    @if (!string.IsNullOrEmpty(attraction.PhotoUrl))
+                    {
+                        <img src="@attraction.PhotoUrl" class="card-img-top" alt="@attraction.Name" style="height: 180px; object-fit: cover;" />
+                    }
+                    <div class="card-body">
+                        <h5 class="card-title">@attraction.Name</h5>
+                        <p class="card-text text-muted">@attraction.Description</p>
+                    </div>
+                    <div class="card-footer">
+                        <a asp-controller="Attractions" asp-action="Details" asp-route-id="@attraction.Id" class="btn btn-outline-primary btn-sm">Подробнее</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,59 @@
+@model KR4.Models.Attraction
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-controller="Cities" asp-action="Index">Города</a></li>
+        <li class="breadcrumb-item"><a asp-controller="Cities" asp-action="Details" asp-route-id="@Model.CityId">@Model.City.Name</a></li>
+        <li class="breadcrumb-item active">@Model.Name</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col-md-7">
+        @if (!string.IsNullOrEmpty(Model.PhotoUrl))
+        {
+            <img src="@Model.PhotoUrl" class="img-fluid rounded shadow" alt="@Model.Name" style="width: 100%; max-height: 420px; object-fit: cover;" />
+        }
+    </div>
+    <div class="col-md-5">
+        <h2>@Model.Name</h2>
+        <p class="text-muted">@Model.Description</p>
+        <table class="table table-bordered mt-3">
+            <tbody>
+                <tr>
+                    <th>Город</th>
+                    <td>@Model.City.Name</td>
+                </tr>
+                @if (!string.IsNullOrEmpty(Model.WorkingHours))
+                {
+                    <tr>
+                        <th>Часы работы</th>
+                        <td>@Model.WorkingHours</td>
+                    </tr>
+                }
+                <tr>
+                    <th>Стоимость входа</th>
+                    <td>
+                        @if (Model.VisitCost.HasValue)
+                        {
+                            @($"{Model.VisitCost:N0} руб.")
+                        }
+                        else
+                        {
+                            <span class="text-success">Бесплатно</span>
+                        }
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <h5>История</h5>
+        <p>@Model.History</p>
+    </div>
+</div>
+
+<a asp-controller="Cities" asp-action="Details" asp-route-id="@Model.CityId" class="btn btn-secondary">
+    Назад к городу
+</a>
